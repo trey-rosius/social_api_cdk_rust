@@ -1,0 +1,65 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  getUserAccount(id: String!): User! @aws_cognito_user_pools
+  getUserByEmail(email: String!): User! @aws_cognito_user_pools @aws_api_key
+}
+
+type Mutation {
+  createUserAccount(userInput: CreateUserInput!): User! @aws_cognito_user_pools
+  updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
+}
+
+type User @aws_cognito_user_pools @aws_api_key {
+  id: String!
+  username: String!
+  firstName: String!
+  lastName: String!
+  userType: USERTYPE!
+  about: String!
+  address: Address
+  email: AWSEmail!
+  profilePicUrl: String!
+  profilePicKey: String!
+  createdOn: AWSTimestamp
+  updatedOn: AWSTimestamp
+}
+
+input CreateUserInput @aws_cognito_user_pools {
+  username: String!
+  firstName: String!
+  lastName: String!
+  about: String!
+  email: AWSEmail!
+  userType: USERTYPE!
+  profilePicKey: String!
+  profilePicUrl: String!
+}
+input UpdateUserInput @aws_cognito_user_pools {
+  id: String!
+  username: String!
+  email: AWSEmail!
+  profilePicKey: String!
+  profilePicUrl: String!
+  address: AddressInput!
+}
+type Address @aws_cognito_user_pools {
+  street: String!
+  city: String!
+  zip: Int!
+  country: String!
+}
+input AddressInput @aws_cognito_user_pools {
+  street: String!
+  city: String!
+  zip: Int!
+  country: String!
+}
+
+enum USERTYPE {
+  ADMIN
+  MEMBER
+}
