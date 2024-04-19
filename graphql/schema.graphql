@@ -41,7 +41,6 @@ input CreateUserInput @aws_cognito_user_pools {
 input UpdateUserInput @aws_cognito_user_pools {
   id: String!
   username: String!
-  email: AWSEmail!
   profilePicKey: String!
   profilePicUrl: String!
   address: AddressInput!
