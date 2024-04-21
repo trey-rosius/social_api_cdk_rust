@@ -12,6 +12,12 @@ type Query {
     @aws_api_key
   getUserAccount(id: String!): User! @aws_cognito_user_pools
   getUserByEmail(email: String!): User! @aws_cognito_user_pools @aws_api_key
+
+  getCommentsPerPost(
+    postId: String!
+    limit: Int!
+    nextToken: String
+  ): PostCommentsResult! @aws_cognito_user_pools @aws_api_key
 }
 
 type Mutation {
@@ -22,6 +28,9 @@ type Mutation {
     @aws_api_key
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
   deletePost(userId: String!, postId: String!): Boolean! @aws_cognito_user_pools
+  createComment(commentInput: CreateCommentInput!): Comment!
+    @aws_cognito_user_pools
+    @aws_api_key
 }
 
 type User @aws_cognito_user_pools @aws_api_key {
@@ -113,8 +122,22 @@ type Comment @aws_cognito_user_pools @aws_api_key {
   updatedOn: AWSTimestamp
 }
 
+input CreateCommentInput @aws_cognito_user_pools @aws_api_key {
+  userId: String!
+
+  postId: String!
+  comment: String!
+}
+type PostCommentsResult @aws_cognito_user_pools @aws_api_key {
+  items: [Comment!]!
+  nextToken: String
+}
+
 type Subscription {
   createdPost: Post
     @aws_subscribe(mutations: ["createPost"])
+    @aws_cognito_user_pools
+  createdComment: Comment
+    @aws_subscribe(mutations: ["createComment"])
     @aws_cognito_user_pools
 }

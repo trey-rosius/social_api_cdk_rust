@@ -187,6 +187,14 @@ export class SocialApiCdkRustStack extends cdk.Stack {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
+    this.api.createResolver('createComment', {
+      typeName: 'Mutation',
+      fieldName: 'createComment',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/comment/createComment.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
     this.api.createResolver('getUserByEmail', {
       typeName: 'Query',
       fieldName: 'getUserByEmail',
@@ -299,6 +307,29 @@ export class SocialApiCdkRustStack extends cdk.Stack {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
     getUserPerPost.node.addDependency(getAllPosts);
+
+    const getUserPerComment = this.api.createResolver('getUserPerComment', {
+      typeName: 'Comment',
+      fieldName: 'user',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/post/getUserPerComment.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    getUserPerPost.node.addDependency(getAllPosts);
+
+    const getCommentsPerPost = this.api.createResolver('getCommentsPerPost', {
+      typeName: 'Query',
+      fieldName: 'getCommentsPerPost',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/comment/getcommentsPerPost.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    getUserPerComment.node.addDependency(getCommentsPerPost);
+
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
     });
