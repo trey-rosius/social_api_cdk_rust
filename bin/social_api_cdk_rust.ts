@@ -5,5 +5,5 @@ import { SocialApiCdkRustStack } from '../lib/social_api_cdk_rust-stack';
 
 const app = new cdk.App();
 new SocialApiCdkRustStack(app, 'SocialApiCdkRustStack', {
-  env: { account: '132260253285', region: 'us-east-2' },
+  env: { account: 'xxxxxxxxxxxxxx', region: 'us-east-2' },
 });
