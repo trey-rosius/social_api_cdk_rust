@@ -18,6 +18,11 @@ type Query {
     limit: Int!
     nextToken: String
   ): PostCommentsResult! @aws_cognito_user_pools @aws_api_key
+  getUserFollowers(
+    userId: String
+    nextToken: String
+    limit: Int!
+  ): FollowerResult! @aws_cognito_user_pools
 }
 
 type Mutation {
@@ -31,6 +36,9 @@ type Mutation {
   createComment(commentInput: CreateCommentInput!): Comment!
     @aws_cognito_user_pools
     @aws_api_key
+
+  followUser(followerId: String!, followingId: String!): Follow!
+    @aws_cognito_user_pools
 }
 
 type User @aws_cognito_user_pools @aws_api_key {
@@ -107,7 +115,14 @@ input AddressInput @aws_cognito_user_pools {
   zip: Int!
   country: String!
 }
-
+type Follow @aws_cognito_user_pools {
+  followerId: String!
+  followingId: String!
+}
+type FollowerResult @aws_cognito_user_pools {
+  items: [User!]!
+  nextToken: String
+}
 enum USERTYPE {
   ADMIN
   MEMBER

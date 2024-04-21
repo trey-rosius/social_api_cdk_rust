@@ -329,7 +329,64 @@ export class SocialApiCdkRustStack extends cdk.Stack {
     });
 
     getUserPerComment.node.addDependency(getCommentsPerPost);
+    const getFollowerIdFunction = new appsync.AppsyncFunction(
+      this,
+      'getFollowerIdFunction',
+      {
+        api: this.api,
+        dataSource: dbDataSource,
+        name: 'getFollowerIdFunction',
+        code: appsync.Code.fromAsset('./resolvers/followers/getFollowerIds.js'),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      },
+    );
 
+    const batchGetFollowerDetailsFunction = new appsync.AppsyncFunction(
+      this,
+      'batchGetFollowerDetailsFunction',
+      {
+        api: this.api,
+        dataSource: dbDataSource,
+        name: 'batchGetFollowerDetailsFunction',
+        code: appsync.Code.fromAsset(
+          './resolvers/followers/batchGetFollowerDetails.js',
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      },
+    );
+    const afterBatchGetFollowerDetailsFunction = new appsync.AppsyncFunction(
+      this,
+      'afterBatchGetFollowerDetailsFunction',
+      {
+        api: this.api,
+        dataSource: noneDataSource,
+        name: 'afterBatchGetFollowerDetailsFunction',
+        code: appsync.Code.fromAsset(
+          './resolvers/followers/afterBatchGetFollowerDetails.js',
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      },
+    );
+    this.api.createResolver('followUser', {
+      typeName: 'Mutation',
+      fieldName: 'followUser',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/followers/followUser.js'),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver('getUserFollowers', {
+      typeName: 'Query',
+      code: appsync.Code.fromAsset('./resolvers/pipeline/default.js'),
+      fieldName: 'getUserFollowers',
+      pipelineConfig: [
+        getFollowerIdFunction,
+        batchGetFollowerDetailsFunction,
+        afterBatchGetFollowerDetailsFunction,
+      ],
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
     });
