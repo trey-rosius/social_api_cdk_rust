@@ -1,9 +1,15 @@
 schema {
   query: Query
   mutation: Mutation
+  subscription: Subscription
 }
 
 type Query {
+  generatePostImages(prompt: String!): String! @aws_cognito_user_pools
+  getPost(id: String!): Post! @aws_cognito_user_pools @aws_api_key
+  getAllPosts(limit: Int!, nextToken: String): PostsResult!
+    @aws_cognito_user_pools
+    @aws_api_key
   getUserAccount(id: String!): User! @aws_cognito_user_pools
   getUserByEmail(email: String!): User! @aws_cognito_user_pools @aws_api_key
 }
@@ -11,6 +17,11 @@ type Query {
 type Mutation {
   createUserAccount(userInput: CreateUserInput!): User! @aws_cognito_user_pools
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
+  createPost(postInput: CreatePostInput!): Post!
+    @aws_cognito_user_pools
+    @aws_api_key
+  updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
+  deletePost(userId: String!, postId: String!): Boolean! @aws_cognito_user_pools
 }
 
 type User @aws_cognito_user_pools @aws_api_key {
@@ -51,6 +62,36 @@ type Address @aws_cognito_user_pools {
   zip: Int!
   country: String!
 }
+input CreatePostInput @aws_cognito_user_pools @aws_api_key {
+  content: String!
+  userId: String!
+  imageKeys: [String!]!
+  imageUrls: [String!]!
+}
+
+input UpdatePostInput @aws_cognito_user_pools {
+  id: String!
+  userId: String
+  content: String
+  imageKeys: [String!]!
+  imageUrls: [String!]!
+}
+type Post @aws_cognito_user_pools @aws_api_key {
+  id: String!
+  userId: String!
+  user: User!
+  content: String!
+  comments: [Comment!]
+  imageKeys: [String!]!
+  imageUrls: [String!]!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type PostsResult @aws_cognito_user_pools @aws_api_key {
+  items: [Post!]!
+  nextToken: String
+}
 input AddressInput @aws_cognito_user_pools {
   street: String!
   city: String!
@@ -61,4 +102,19 @@ input AddressInput @aws_cognito_user_pools {
 enum USERTYPE {
   ADMIN
   MEMBER
+}
+type Comment @aws_cognito_user_pools @aws_api_key {
+  id: String!
+  user: User
+  userId: String!
+  postId: String!
+  comment: String!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type Subscription {
+  createdPost: Post
+    @aws_subscribe(mutations: ["createPost"])
+    @aws_cognito_user_pools
 }

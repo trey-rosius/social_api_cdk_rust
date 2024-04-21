@@ -126,6 +126,7 @@ export class SocialApiCdkRustStack extends cdk.Stack {
         'about',
         'profilePicUrl',
         'profilePicKey',
+        'address',
         'userType',
         'firstName',
         'lastName',
@@ -147,7 +148,10 @@ export class SocialApiCdkRustStack extends cdk.Stack {
     );
 
     const noneDataSource = this.api.addNoneDataSource('none');
-
+    const eventBridgeDataSource = this.api.addEventBridgeDataSource(
+      'eventBridgeDataSource',
+      eventBus,
+    );
     const formatUserAccountFunction = new appsync.AppsyncFunction(
       this,
       'formatUserAccountInput',
@@ -211,6 +215,90 @@ export class SocialApiCdkRustStack extends cdk.Stack {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
+    const createPostFunction = new appsync.AppsyncFunction(
+      this,
+      'createPostFunction',
+      {
+        api: this.api,
+        dataSource: dbDataSource,
+        name: 'createPostFunction',
+        code: appsync.Code.fromAsset('./resolvers/post/createPost.js'),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      },
+    );
+    const eventBridgeFunction = new appsync.AppsyncFunction(
+      this,
+      'eventBridgeFunction',
+      {
+        api: this.api,
+        dataSource: eventBridgeDataSource,
+        name: 'eventBridgeFunction',
+        code: appsync.Code.fromAsset('./resolvers/events/putEvents.js'),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      },
+    );
+    const bedrockDataSource = this.api.addHttpDataSource(
+      'bedrockDS',
+      'https://bedrock-runtime.us-east-1.amazonaws.com',
+      {
+        authorizationConfig: {
+          signingRegion: 'us-east-1',
+          signingServiceName: 'bedrock',
+        },
+      },
+    );
+
+    bedrockDataSource.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        resources: [
+          'arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v1',
+        ],
+        actions: ['bedrock:InvokeModel'],
+      }),
+    );
+
+    this.api.createResolver('createPost', {
+      typeName: 'Mutation',
+      fieldName: 'createPost',
+      pipelineConfig: [createPostFunction, eventBridgeFunction],
+
+      code: appsync.Code.fromAsset('./resolvers/pipeline/default.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+    this.api.createResolver('generatePostImageResolver', {
+      dataSource: bedrockDataSource,
+      typeName: 'Query',
+      fieldName: 'generatePostImages',
+      code: appsync.Code.fromAsset('./resolvers/post/generatePostImages.js'),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+    this.api.createResolver('getPost', {
+      typeName: 'Query',
+      fieldName: 'getPost',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/post/getPost.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    const getAllPosts = this.api.createResolver('getAllPosts', {
+      typeName: 'Query',
+      fieldName: 'getAllPosts',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/post/getAllPosts.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+    const getUserPerPost = this.api.createResolver('getUserPerPost', {
+      typeName: 'Post',
+      fieldName: 'user',
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset('./resolvers/post/getUserPerPost.js'),
+
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+    getUserPerPost.node.addDependency(getAllPosts);
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
     });
