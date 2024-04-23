@@ -264,6 +264,42 @@ export class SocialApiCdkRustStack extends cdk.Stack {
         actions: ['bedrock:InvokeModel'],
       }),
     );
+    const sendBulkEmailSF = new sfn.StateMachine(this, 'SendBulkEmailSF', {
+      definitionBody: sfn.DefinitionBody.fromFile(
+        './state_workflow/send_email_workflow.asl.json',
+      ),
+    });
+
+    this.table.grantReadData(sendBulkEmailSF);
+    //grant step functions permissions to send bulk email
+    sendBulkEmailSF.addToRolePolicy(
+      new cdk.aws_iam.PolicyStatement({
+        actions: [
+          'ses:SendEmail',
+          'ses:SendTemplatedEmail',
+          'ses:SendBulkTemplatedEmail',
+          'ses:SendBulkEmail',
+          'sesv2:SendBulkEmail',
+          'ses:VerifyEmailIdentity',
+        ],
+        resources: ['*'],
+        effect: cdk.aws_iam.Effect.ALLOW,
+      }),
+    );
+
+    const rule = new events.Rule(this, 'send-email-rule', {
+      eventBus: eventBus,
+      eventPattern: {
+        detailType: events.Match.exactString('postCreated'),
+        source: ['email.socialEvent'],
+      },
+      targets: [new events_target.SfnStateMachine(sendBulkEmailSF)],
+    });
+
+    const eventRole = new iam.Role(this, 'event-role-for-step-functions', {
+      assumedBy: new iam.ServicePrincipal('events.amazonaws.com'),
+    });
+    sendBulkEmailSF.grantStartExecution(eventRole);
 
     this.api.createResolver('createPost', {
       typeName: 'Mutation',

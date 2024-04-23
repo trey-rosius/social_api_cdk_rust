@@ -1,0 +1,138 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Get Follower Ids",
+  "States": {
+    "Get Follower Ids": {
+      "Type": "Task",
+      "Parameters": {
+        "TableName": "CdkRustSocialStack-CdkRustSocialDB73E6788D-T6P4KEXZBA94",
+        "IndexName": "getAllFollowers",
+        "ScanIndexForward": "True",
+        "Limit": 10,
+        "KeyConditionExpression": "GSI3PK = :GSI3PK AND begins_with(GSI3SK,:GSI3SK)",
+        "ExpressionAttributeValues": {
+          ":GSI3PK": {
+            "S.$": "States.Format('FOLLOWINGID#{}',$.detail.userId)"
+          },
+          ":GSI3SK": {
+            "S": "FOLLOWERID#"
+          }
+        },
+        "ReturnConsumedCapacity": "TOTAL"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "Next": "Get Email String from Query Results"
+    },
+    "Get Email String from Query Results": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Split String",
+        "States": {
+          "Split String": {
+            "Type": "Pass",
+            "Parameters": {
+              "userId.$": "States.ArrayGetItem(States.StringSplit($.S,'#'),1)"
+            },
+            "Next": "DynamoDB GetItem"
+          },
+          "DynamoDB GetItem": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:getItem",
+            "Parameters": {
+              "TableName": "CdkRustSocialStack-CdkRustSocialDB73E6788D-T6P4KEXZBA94",
+              "Key": {
+                "PK": {
+                  "S.$": "States.Format('USER#{}',$.userId)"
+                },
+                "SK": {
+                  "S.$": "States.Format('USER#{}',$.userId)"
+                }
+              }
+            },
+            "Next": "pick out emails"
+          },
+          "pick out emails": {
+            "Type": "Pass",
+            "End": true,
+            "Parameters": {
+              "email.$": "$.Item.email.S"
+            },
+            "OutputPath": "$.email"
+          }
+        }
+      },
+      "InputPath": "$..GSI3SK",
+      "Next": "Format email array",
+      "ResultPath": "$.follower_emails"
+    },
+    "Format email array": {
+      "Type": "Pass",
+      "Next": "SendBulkEmail",
+      "Parameters": {
+        "mapItems.$": "$"
+      }
+    },
+    "SendBulkEmail": {
+      "Type": "Task",
+      "Parameters": {
+        "BulkEmailEntries": [
+          {
+            "Destination": {
+              "ToAddresses.$": "$.mapItems.follower_emails"
+            }
+          }
+        ],
+        "FromEmailAddress": "support@educloud.academy",
+        "DefaultContent": {
+          "Template": {
+            "TemplateName": "WELCOMW_EMAIL",
+            "TemplateData": {}
+          }
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:sesv2:sendBulkEmail",
+      "InputPath": "$",
+      "Next": "Choice",
+      "ResultPath": "$.emailResult"
+    },
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.mapItems.LastEvaluatedKey",
+          "IsPresent": true,
+          "Next": "Get More Follower Emails"
+        }
+      ],
+      "Default": "Success"
+    },
+    "Get More Follower Emails": {
+      "Type": "Task",
+      "Next": "Get Email String from Query Results",
+      "Parameters": {
+        "TableName": "CdkRustSocialStack-CdkRustSocialDB73E6788D-1TSJNE7AFPI7J",
+        "IndexName": "getAllFollowers",
+        "ScanIndexForward": "True",
+        "Limit": 10,
+        "KeyConditionExpression": "GSI3PK = :GSI3PK AND begins_with(GSI3SK,:GSI3SK)",
+        "ExclusiveStartKey.$": "$.mapItems.LastEvaluatedKey",
+        "ExpressionAttributeValues": {
+          ":GSI3PK": {
+            "S.$": "$.mapItems.LastEvaluatedKey.GSI3PK.S"
+          },
+          ":GSI3SK": {
+            "S": "FOLLOWERID#"
+          }
+        },
+        "ReturnConsumedCapacity": "TOTAL"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}
