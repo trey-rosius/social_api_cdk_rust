@@ -12,7 +12,6 @@ type Query {
     @aws_api_key
   getUserAccount(id: String!): User! @aws_cognito_user_pools
   getUserByEmail(email: String!): User! @aws_cognito_user_pools @aws_api_key
-
   getCommentsPerPost(
     postId: String!
     limit: Int!
@@ -32,13 +31,28 @@ type Mutation {
     @aws_cognito_user_pools
     @aws_api_key
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
-  deletePost(userId: String!, postId: String!): Boolean! @aws_cognito_user_pools
   createComment(commentInput: CreateCommentInput!): Comment!
     @aws_cognito_user_pools
     @aws_api_key
-
+  deletePost(userId: String!, postId: String!): Boolean! @aws_cognito_user_pools
   followUser(followerId: String!, followingId: String!): Follow!
     @aws_cognito_user_pools
+  sendMessage(input: MessageInput!): Message! @aws_cognito_user_pools
+
+  typingIndicator(
+    senderId: String!
+    receiverId: String!
+    typing: Boolean!
+  ): TypingIndicator! @aws_cognito_user_pools
+
+  updateMessageReadReceipts(input: UpdateMessageReadReceiptsInput!): Message!
+    @aws_cognito_user_pools
+}
+
+type TypingIndicator @aws_cognito_user_pools {
+  senderId: String!
+  receiverId: String!
+  typing: Boolean!
 }
 
 type User @aws_cognito_user_pools @aws_api_key {
@@ -56,6 +70,27 @@ type User @aws_cognito_user_pools @aws_api_key {
   updatedOn: AWSTimestamp
 }
 
+type Comment @aws_cognito_user_pools @aws_api_key {
+  id: String!
+  user: User
+  userId: String!
+  postId: String!
+  comment: String!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type Follow @aws_cognito_user_pools {
+  followerId: String!
+  followingId: String!
+}
+
+input CreateCommentInput @aws_cognito_user_pools @aws_api_key {
+  userId: String!
+
+  postId: String!
+  comment: String!
+}
 input CreateUserInput @aws_cognito_user_pools {
   username: String!
   firstName: String!
@@ -79,6 +114,43 @@ type Address @aws_cognito_user_pools {
   zip: Int!
   country: String!
 }
+input AddressInput @aws_cognito_user_pools {
+  street: String!
+  city: String!
+  zip: Int!
+  country: String!
+}
+
+type Message @aws_cognito_user_pools {
+  id: String!
+  messageType: MESSAGETYPE!
+  senderId: String!
+  receiverId: String!
+  text: String
+  read: Boolean!
+  image: String
+  createdOn: AWSTimestamp!
+}
+
+input UpdateMessageReadReceiptsInput @aws_cognito_user_pools {
+  id: String!
+  senderId: String!
+  receiverId: String!
+  read: Boolean!
+}
+input MessageInput @aws_cognito_user_pools {
+  messageType: MESSAGETYPE!
+  senderId: String!
+  receiverId: String!
+  text: String
+  image: String
+  read: Boolean!
+}
+
+enum MESSAGETYPE {
+  TEXT
+  IMAGE
+}
 input CreatePostInput @aws_cognito_user_pools @aws_api_key {
   content: String!
   userId: String!
@@ -93,6 +165,7 @@ input UpdatePostInput @aws_cognito_user_pools {
   imageKeys: [String!]!
   imageUrls: [String!]!
 }
+
 type Post @aws_cognito_user_pools @aws_api_key {
   id: String!
   userId: String!
@@ -105,49 +178,6 @@ type Post @aws_cognito_user_pools @aws_api_key {
   updatedOn: AWSTimestamp
 }
 
-type PostsResult @aws_cognito_user_pools @aws_api_key {
-  items: [Post!]!
-  nextToken: String
-}
-input AddressInput @aws_cognito_user_pools {
-  street: String!
-  city: String!
-  zip: Int!
-  country: String!
-}
-type Follow @aws_cognito_user_pools {
-  followerId: String!
-  followingId: String!
-}
-type FollowerResult @aws_cognito_user_pools {
-  items: [User!]!
-  nextToken: String
-}
-enum USERTYPE {
-  ADMIN
-  MEMBER
-}
-type Comment @aws_cognito_user_pools @aws_api_key {
-  id: String!
-  user: User
-  userId: String!
-  postId: String!
-  comment: String!
-  createdOn: AWSTimestamp!
-  updatedOn: AWSTimestamp
-}
-
-input CreateCommentInput @aws_cognito_user_pools @aws_api_key {
-  userId: String!
-
-  postId: String!
-  comment: String!
-}
-type PostCommentsResult @aws_cognito_user_pools @aws_api_key {
-  items: [Comment!]!
-  nextToken: String
-}
-
 type Subscription {
   createdPost: Post
     @aws_subscribe(mutations: ["createPost"])
@@ -155,4 +185,28 @@ type Subscription {
   createdComment: Comment
     @aws_subscribe(mutations: ["createComment"])
     @aws_cognito_user_pools
+  typingIndicator: TypingIndicator
+    @aws_subscribe(mutations: ["typingIndicator"])
+
+  newMessage: Message
+    @aws_subscribe(mutations: ["sendMessage", "updateMessageReadReceipts"])
+}
+type PostsResult @aws_cognito_user_pools @aws_api_key {
+  items: [Post!]!
+  nextToken: String
+}
+
+type FollowerResult @aws_cognito_user_pools {
+  items: [User!]!
+  nextToken: String
+}
+
+type PostCommentsResult @aws_cognito_user_pools @aws_api_key {
+  items: [Comment!]!
+  nextToken: String
+}
+
+enum USERTYPE {
+  ADMIN
+  MEMBER
 }

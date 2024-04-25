@@ -134,6 +134,26 @@ export class SocialApiCdkRustStack extends cdk.Stack {
       ],
     });
 
+    const sendMessageLambdaFunction = new RustFunction(
+      this,
+      'sendMessageLambdaFunction',
+      {
+        manifestPath: path.join(__dirname, '..', 'rust-functions'),
+      },
+    );
+
+    //add permissions
+    this.table.grantWriteData(sendMessageLambdaFunction);
+    sendMessageLambdaFunction.addEnvironment(
+      'TABLE_NAME',
+      this.table.tableName,
+    );
+
+    const lambdaDataSource = this.api.addLambdaDataSource(
+      'sendMessageLambdaDataSource',
+      sendMessageLambdaFunction,
+    );
+
     //define event bridge rule
 
     const eventBus = new events.EventBus(this, 'CdkRustSocialEventBus', {
@@ -325,6 +345,18 @@ export class SocialApiCdkRustStack extends cdk.Stack {
 
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
+
+    const sendMessageAppSyncfunction = new appsync.AppsyncFunction(
+      this,
+      'sendMessageAppSyncfunction',
+      {
+        api: this.api,
+        dataSource: lambdaDataSource,
+        name: 'sendMessageAppSyncfunction',
+        code: appsync.Code.fromAsset('./resolvers/invoke/invoker.js'),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      },
+    );
 
     const getAllPosts = this.api.createResolver('getAllPosts', {
       typeName: 'Query',
